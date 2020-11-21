@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  simple-samba-shares:
+  - apiVersion: v2
+    appVersion: latest
+    created: "2020-11-21T13:37:13.937186424Z"
+    description: A very simple non-root Samba server
+    digest: cecf9ebef2285d09c2ea991f65e94d507ff76689bc87c813260b5b9fbd3583a3
+    name: simple-samba-shares
+    type: application
+    urls:
+    - https://github.com/pedrohdz/simple-samba-shares-helm/releases/download/simple-samba-shares-0.1.1/simple-samba-shares-0.1.1.tgz
+    version: 0.1.1
+generated: "2020-11-21T13:37:13.498941254Z"
