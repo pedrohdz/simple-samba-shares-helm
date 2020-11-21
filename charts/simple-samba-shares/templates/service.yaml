@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "simple-samba-shares.fullname" . }}
+  labels:
+    {{- include "simple-samba-shares.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: netbios-ssn
+      port: {{ .Values.service.netbiosSsnPort }}
+      protocol: TCP
+      targetPort: netbios-ssn
+    - name: microsoft-ds
+      port: {{ .Values.service.microsoftDsPort }}
+      protocol: TCP
+      targetPort: microsoft-ds
+
+  selector:
+    {{- include "simple-samba-shares.selectorLabels" . | nindent 4 }}

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "simple-samba-shares.fullname" . }}-conf-includes
+  labels:
+    {{- include "simple-samba-shares.labels" . | nindent 4 }}
+data:
+  shares.conf: |
+    {{ (tpl (.Files.Get "files/shares-template.conf") .) | nindent 4 | trim }}
+
+  global.conf: |
+    {{ (tpl (.Files.Get "files/global-template.conf") .) | nindent 4 | trim }}

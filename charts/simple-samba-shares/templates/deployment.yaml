@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "simple-samba-shares.fullname" . }}
+  labels:
+    {{- include "simple-samba-shares.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "simple-samba-shares.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+    {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        {{- include "simple-samba-shares.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "simple-samba-shares.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+
+      initContainers:
+        - name: bootstrap
+          env:
+            - name: NOBODY_UID
+              value: {{ .Values.securityContext.runAsUser | quote }}
+            - name: NOBODY_GID
+              value: {{ .Values.securityContext.runAsGroup | quote }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ['make', '-C', '/opt/bootstrap/', 'change-nobody', 'all']
+          volumeMounts:
+            - mountPath: /opt/bootstrap/secrets
+              name: user-conf-file
+            - mountPath: /opt/bootstrap/build
+              name: build-dir
+            - mountPath: /opt/samba/runtime
+              name: runtime-dir
+            - mountPath: /opt/samba/conf/include
+              name: samba-conf-includes
+
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: netbios-ssn
+              protocol: TCP
+              containerPort: 8139
+            - name: microsoft-ds
+              protocol: TCP
+              containerPort: 8445
+          livenessProbe:
+            tcpSocket:
+              port: netbios-ssn
+          readinessProbe:
+            tcpSocket:
+              port: netbios-ssn
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            # User configuration files (/etc/*).
+            - mountPath: /etc/group
+              name: build-dir
+              subPath: group
+            - mountPath: /etc/passwd
+              name: build-dir
+              subPath: passwd
+            - mountPath: /etc/shadow
+              name: build-dir
+              subPath: shadow
+            # Runtime directory.
+            - mountPath: /opt/samba/runtime
+              name: runtime-dir
+            # Samba config includes
+            - mountPath: /opt/samba/conf/include
+              name: samba-conf-includes
+            # Samba shares
+            {{- range $.Values.sambaShares }}
+            - mountPath: {{ .mountPath }}
+              name: {{ .name }}
+            {{- end }}
+
+      volumes:
+        # /opt/bootstrap/secrets/users.conf
+        - name: user-conf-file
+          secret:
+            defaultMode: 0400
+            optional: false
+            secretName: {{ .Values.existingSambaUsersSecret | default (include "simple-samba-shares.fullname" . | printf "%s-user-conf" ) }}
+        # /opt/bootstrap/build
+        - name: build-dir
+          emptyDir: {}
+        # /opt/samba/runtime
+        - name: runtime-dir
+          emptyDir: {}
+        # /opt/samba/conf/include
+        - name: samba-conf-includes
+          configMap:
+            defaultMode: 0444
+            name: {{ include "simple-samba-shares.fullname" . }}-conf-includes
+            optional: false
+        # Samba shares
+        {{- range $.Values.sambaShares }}
+        - name: {{ .name }}
+          persistentVolumeClaim:
+            claimName: {{ .existingClaim }}
+            readOnly: {{ .readOnly }}
+        {{- end }}
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
