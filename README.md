@@ -1,5 +1,7 @@
 # simple-samba-shares-helm
 
+![Release Charts](https://github.com/pedrohdz/simple-samba-shares-helm/workflows/Release%20Charts/badge.svg?branch=master)
+
 TODO
 
 ```bash
